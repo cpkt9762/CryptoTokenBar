@@ -162,7 +162,7 @@ struct OverlayTokenRow: View {
             Spacer()
             
             if let sparkline = sparkline {
-                OverlaySparklineView(points: sparkline.getNormalizedPoints())
+                SparklineView(points: sparkline.getNormalizedPoints())
                     .frame(width: 60 * scale, height: 24 * scale)
             }
             
@@ -216,7 +216,7 @@ struct CompactTokenRow: View {
                 .frame(width: 50 * scale, alignment: .leading)
             
             if let sparkline = sparkline {
-                OverlaySparklineView(points: sparkline.getNormalizedPoints())
+                SparklineView(points: sparkline.getNormalizedPoints())
                     .frame(width: 50 * scale, height: 20 * scale)
             }
             
@@ -302,84 +302,6 @@ struct NonDraggableWindowArea<Content: View>: NSViewRepresentable {
 
 final class NonDraggableHostingView<Content: View>: NSHostingView<Content> {
     override var mouseDownCanMoveWindow: Bool { false }
-}
-
-struct TokenIconView: View {
-    let symbol: String
-    
-    var body: some View {
-        AsyncImage(url: iconURL) { phase in
-            switch phase {
-            case .success(let image):
-                image
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-            case .failure, .empty:
-                fallbackIcon
-            @unknown default:
-                fallbackIcon
-            }
-        }
-    }
-    
-    private var iconURL: URL? {
-        let lowercased = symbol.lowercased()
-        return URL(string: "https://raw.githubusercontent.com/spothq/cryptocurrency-icons/master/128/color/\(lowercased).png")
-    }
-    
-    private var fallbackIcon: some View {
-        ZStack {
-            Circle()
-                .fill(iconGradient)
-            
-            Text(symbol.prefix(1))
-                .font(.system(size: 16, weight: .bold))
-                .foregroundColor(.white)
-        }
-    }
-    
-    private var iconGradient: LinearGradient {
-        let colors: [Color] = {
-            switch symbol {
-            case "BTC": return [Color.orange, Color.yellow]
-            case "ETH": return [Color.purple, Color.blue]
-            case "SOL": return [Color.purple, Color.pink]
-            case "BNB": return [Color.yellow, Color.orange]
-            case "XMR": return [Color.orange, Color.red]
-            default: return [Color.blue, Color.cyan]
-            }
-        }()
-        return LinearGradient(colors: colors, startPoint: .topLeading, endPoint: .bottomTrailing)
-    }
-}
-
-struct OverlaySparklineView: View {
-    let points: [Double]
-    
-    var body: some View {
-        GeometryReader { geo in
-            if points.count > 1 {
-                Path { path in
-                    for (index, value) in points.enumerated() {
-                        let x = geo.size.width * CGFloat(index) / CGFloat(points.count - 1)
-                        let y = geo.size.height * (1 - value)
-                        
-                        if index == 0 {
-                            path.move(to: CGPoint(x: x, y: y))
-                        } else {
-                            path.addLine(to: CGPoint(x: x, y: y))
-                        }
-                    }
-                }
-                .stroke(sparklineColor, lineWidth: 1.5)
-            }
-        }
-    }
-    
-    private var sparklineColor: Color {
-        guard let first = points.first, let last = points.last else { return .gray }
-        return last >= first ? .green : .red
-    }
 }
 
 struct OverlayBackgroundView: View {

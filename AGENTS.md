@@ -13,6 +13,9 @@ xcodebuild -project CryptoTokenBar.xcodeproj -scheme CryptoTokenBar -configurati
 # Build (Release)
 xcodebuild -project CryptoTokenBar.xcodeproj -scheme CryptoTokenBar -configuration Release build
 
+# Build ScreenSaver bundle
+xcodebuild -project CryptoTokenBar.xcodeproj -target CryptoTokenBarScreenSaver -configuration Release -destination 'platform=macOS' build
+
 # Clean build
 xcodebuild -project CryptoTokenBar.xcodeproj -scheme CryptoTokenBar clean
 ```
