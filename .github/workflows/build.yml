@@ -5,6 +5,8 @@ permissions:
 
 on:
   push:
+    branches:
+      - main
     tags:
       - 'v*'
   workflow_dispatch:
@@ -41,7 +43,7 @@ jobs:
       - name: Build ScreenSaver
         run: |
           xcodebuild -project CryptoTokenBar.xcodeproj \
-            -target CryptoTokenBarScreenSaver \
+            -target CryptoSaver \
             -configuration Release \
             -destination 'platform=macOS' \
             -derivedDataPath build \
@@ -79,8 +81,8 @@ jobs:
       - name: Upload ScreenSaver Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: CryptoTokenBar-screensaver
-          path: "build/Build/Products/Release/CryptoTokenBarScreenSaver.saver"
+          name: CryptoSaver
+          path: "build/Build/Products/Release/CryptoSaver.saver"
 
       - name: Create Release
         if: startsWith(github.ref, 'refs/tags/')
@@ -88,7 +90,7 @@ jobs:
         with:
           files: |
             *.dmg
-            build/Build/Products/Release/CryptoTokenBarScreenSaver.saver
+            build/Build/Products/Release/CryptoSaver.saver
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
