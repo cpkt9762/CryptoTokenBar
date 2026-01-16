@@ -42,8 +42,8 @@ actor WebSocketClient {
     private let session: URLSession
     private var pingTask: Task<Void, Never>?
     private var receiveTask: Task<Void, Never>?
+    private var reconnectTask: Task<Void, Never>?
     
-    // Keep delegate alive
     private let sessionDelegate = TLSBypassDelegate()
     
     private(set) var isConnected = false
@@ -51,6 +51,8 @@ actor WebSocketClient {
     private var reconnectAttempt = 0
     private let maxReconnectAttempts = 10
     private let baseReconnectDelay: TimeInterval = 1.0
+    private var currentURL: URL?
+    private var shouldReconnect = true
     
     private let messageHandler: @Sendable (URLSessionWebSocketTask.Message) async -> Void
     private let disconnectHandler: @Sendable () async -> Void
@@ -72,7 +74,11 @@ actor WebSocketClient {
     }
     
     func connect(to url: URL) async throws {
-        disconnect()
+        stopCurrentConnection()
+        
+        currentURL = url
+        shouldReconnect = true
+        isReconnectExhausted = false
         
         debugLog("[WS] Connecting to \(url)")
         task = session.webSocketTask(with: url)
@@ -88,7 +94,7 @@ actor WebSocketClient {
         startPing()
     }
     
-    func disconnect() {
+    private func stopCurrentConnection() {
         pingTask?.cancel()
         pingTask = nil
         
@@ -99,6 +105,13 @@ actor WebSocketClient {
         task = nil
         
         isConnected = false
+    }
+    
+    func disconnect() {
+        shouldReconnect = false
+        reconnectTask?.cancel()
+        reconnectTask = nil
+        stopCurrentConnection()
     }
     
     func send(_ message: String) async throws {
@@ -155,38 +168,81 @@ actor WebSocketClient {
     private func handleDisconnect() async {
         guard isConnected else { return }
         isConnected = false
+        stopCurrentConnection()
         await disconnectHandler()
     }
     
     func scheduleReconnect(to url: URL) async {
-        guard reconnectAttempt < maxReconnectAttempts else {
-            debugLog("[WS] Reconnect exhausted after \(maxReconnectAttempts) attempts")
-            isReconnectExhausted = true
-            await reconnectExhaustedHandler?()
+        guard reconnectTask == nil else {
+            debugLog("[WS] Reconnect already in progress, skipping")
             return
         }
         
-        reconnectAttempt += 1
-        let delay = baseReconnectDelay * pow(2.0, Double(reconnectAttempt - 1))
-        let cappedDelay = min(delay, 60.0)
+        currentURL = url
         
-        debugLog("[WS] Reconnect attempt \(reconnectAttempt)/\(maxReconnectAttempts) in \(cappedDelay)s")
+        reconnectTask = Task { [weak self] in
+            guard let self = self else { return }
+            await self.runReconnectLoop()
+        }
+    }
+    
+    private func runReconnectLoop() async {
+        guard let url = currentURL else { return }
         
-        try? await Task.sleep(for: .seconds(cappedDelay))
-        
-        if !Task.isCancelled {
+        while shouldReconnect && reconnectAttempt < maxReconnectAttempts && !Task.isCancelled {
+            reconnectAttempt += 1
+            let delay = baseReconnectDelay * pow(2.0, Double(reconnectAttempt - 1))
+            let cappedDelay = min(delay, 60.0)
+            
+            debugLog("[WS] Reconnect attempt \(reconnectAttempt)/\(maxReconnectAttempts) in \(cappedDelay)s")
+            
             do {
-                try await connect(to: url)
+                try await Task.sleep(for: .seconds(cappedDelay))
+            } catch {
+                debugLog("[WS] Reconnect sleep cancelled")
+                break
+            }
+            
+            guard shouldReconnect && !Task.isCancelled else { break }
+            
+            do {
+                try await performReconnect(to: url)
                 debugLog("[WS] Reconnect successful")
+                reconnectTask = nil
+                return
             } catch {
                 debugLog("[WS] Reconnect failed: \(error)")
-                await scheduleReconnect(to: url)
             }
         }
+        
+        if shouldReconnect && reconnectAttempt >= maxReconnectAttempts {
+            debugLog("[WS] Reconnect exhausted after \(maxReconnectAttempts) attempts")
+            isReconnectExhausted = true
+            await reconnectExhaustedHandler?()
+        }
+        
+        reconnectTask = nil
+    }
+    
+    private func performReconnect(to url: URL) async throws {
+        stopCurrentConnection()
+        
+        debugLog("[WS] Reconnecting to \(url)")
+        task = session.webSocketTask(with: url)
+        task?.resume()
+        
+        try await Task.sleep(for: .seconds(1))
+        
+        isConnected = true
+        reconnectAttempt = 0
+        
+        startReceiving()
+        startPing()
     }
     
     func resetReconnectState() {
         reconnectAttempt = 0
         isReconnectExhausted = false
+        shouldReconnect = true
     }
 }
