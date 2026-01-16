@@ -30,13 +30,17 @@ final class PriceService {
     private(set) var prices: [String: AggregatedPrice] = [:]
     private(set) var sparklines: [String: SparklineBuffer] = [:]
     private(set) var sparklineVersion: Int = 0
+    private(set) var isDisconnected: Bool = false
     
     private var priceTask: Task<Void, Never>?
     private var fxTask: Task<Void, Never>?
+    private var watchdogTask: Task<Void, Never>?
     
     private var usdtRate: Decimal = 1.0
     private var usdcRate: Decimal = 1.0
     private var currentQuote: QuoteMode = .usdt
+    private var lastTickTime: Date = Date()
+    private let staleThreshold: TimeInterval = 60 // 60s without tick = stale
     
     private init() {}
     
@@ -64,6 +68,7 @@ final class PriceService {
             futuresProvider = BinanceFuturesProvider()
             try await futuresProvider?.connect(symbols: symbols)
             startPriceStream()
+            startWatchdog()
         }
         
         debugLog("[PriceService] Started successfully")
@@ -74,6 +79,8 @@ final class PriceService {
         priceTask = nil
         fxTask?.cancel()
         fxTask = nil
+        watchdogTask?.cancel()
+        watchdogTask = nil
         
         Task {
             await fxProvider?.disconnect()
@@ -82,6 +89,7 @@ final class PriceService {
         
         fxProvider = nil
         futuresProvider = nil
+        isDisconnected = false
     }
     
     func updateSubscriptions(tokens: [Token], quote: QuoteMode) async throws {
@@ -121,6 +129,12 @@ final class PriceService {
     private func processTick(_ tick: PriceTick, quote: QuoteMode) async {
         let symbol = tick.pair.base
         
+        lastTickTime = Date()
+        if isDisconnected {
+            isDisconnected = false
+            debugLog("[PriceService] Connection restored")
+        }
+        
         if sparklines[symbol] == nil {
             sparklines[symbol] = SparklineBuffer()
         }
@@ -139,6 +153,62 @@ final class PriceService {
             lastUpdate: tick.timestamp,
             status: .live
         )
+    }
+    
+    private func startWatchdog() {
+        watchdogTask = Task {
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(10))
+                guard !Task.isCancelled else { break }
+                
+                if let provider = futuresProvider, provider.isReconnectExhausted {
+                    if !isDisconnected {
+                        isDisconnected = true
+                        debugLog("[PriceService] Watchdog: reconnect exhausted, marking disconnected")
+                        markAllPricesDisconnected()
+                    }
+                    continue
+                }
+                
+                let elapsed = Date().timeIntervalSince(lastTickTime)
+                if elapsed > staleThreshold && !isDisconnected {
+                    debugLog("[PriceService] Watchdog: no tick for \(Int(elapsed))s, marking stale")
+                    markAllPricesStale()
+                }
+            }
+        }
+    }
+    
+    private func markAllPricesDisconnected() {
+        for (symbol, price) in prices {
+            prices[symbol] = AggregatedPrice(
+                symbol: symbol,
+                price: 0,
+                displayPrice: "$0",
+                quoteMode: price.quoteMode,
+                priceChange24h: nil,
+                lastUpdate: price.lastUpdate,
+                status: .disconnected
+            )
+        }
+        sparklineVersion += 1
+    }
+    
+    private func markAllPricesStale() {
+        for (symbol, price) in prices {
+            if price.status == .live {
+                prices[symbol] = AggregatedPrice(
+                    symbol: symbol,
+                    price: price.price,
+                    displayPrice: price.displayPrice,
+                    quoteMode: price.quoteMode,
+                    priceChange24h: price.priceChange24h,
+                    lastUpdate: price.lastUpdate,
+                    status: .stale
+                )
+            }
+        }
+        sparklineVersion += 1
     }
     
     private func formatPrice(_ price: Decimal, quote: QuoteMode) -> String {

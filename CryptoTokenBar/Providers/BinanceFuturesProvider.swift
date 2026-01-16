@@ -10,9 +10,11 @@ final class BinanceFuturesProvider: @unchecked Sendable {
     
     private var currentQuote: String = "USDT"
     private var _isConnected = false
+    private var _isReconnectExhausted = false
     private var subscribedSymbols: [String] = []
     
     var isConnected: Bool { _isConnected }
+    var isReconnectExhausted: Bool { _isReconnectExhausted }
     
     var priceStream: AsyncStream<PriceTick> {
         if let stream = _priceStream {
@@ -31,6 +33,7 @@ final class BinanceFuturesProvider: @unchecked Sendable {
         guard !symbols.isEmpty else { return }
         
         subscribedSymbols = symbols
+        _isReconnectExhausted = false
         
         let ws = WebSocketClient(
             messageHandler: { [weak self] message in
@@ -38,6 +41,9 @@ final class BinanceFuturesProvider: @unchecked Sendable {
             },
             disconnectHandler: { [weak self] in
                 await self?.handleDisconnect()
+            },
+            reconnectExhaustedHandler: { [weak self] in
+                await self?.handleReconnectExhausted()
             }
         )
         self.webSocket = ws
@@ -125,9 +131,16 @@ final class BinanceFuturesProvider: @unchecked Sendable {
     }
     
     private func handleDisconnect() async {
+        _isConnected = false
+        debugLog("[BinanceFutures] Disconnected, scheduling reconnect...")
         if let url = currentStreamURL {
             await webSocket?.scheduleReconnect(to: url)
         }
+    }
+    
+    private func handleReconnectExhausted() async {
+        _isReconnectExhausted = true
+        debugLog("[BinanceFutures] Reconnect exhausted - prices will show as unavailable")
     }
 }
 

@@ -47,16 +47,19 @@ actor WebSocketClient {
     private let sessionDelegate = TLSBypassDelegate()
     
     private(set) var isConnected = false
+    private(set) var isReconnectExhausted = false
     private var reconnectAttempt = 0
     private let maxReconnectAttempts = 10
     private let baseReconnectDelay: TimeInterval = 1.0
     
     private let messageHandler: @Sendable (URLSessionWebSocketTask.Message) async -> Void
     private let disconnectHandler: @Sendable () async -> Void
+    private let reconnectExhaustedHandler: (@Sendable () async -> Void)?
     
     init(
         messageHandler: @escaping @Sendable (URLSessionWebSocketTask.Message) async -> Void,
-        disconnectHandler: @escaping @Sendable () async -> Void
+        disconnectHandler: @escaping @Sendable () async -> Void,
+        reconnectExhaustedHandler: (@Sendable () async -> Void)? = nil
     ) {
         self.session = URLSession(
             configuration: .default,
@@ -65,6 +68,7 @@ actor WebSocketClient {
         )
         self.messageHandler = messageHandler
         self.disconnectHandler = disconnectHandler
+        self.reconnectExhaustedHandler = reconnectExhaustedHandler
     }
     
     func connect(to url: URL) async throws {
@@ -155,16 +159,34 @@ actor WebSocketClient {
     }
     
     func scheduleReconnect(to url: URL) async {
-        guard reconnectAttempt < maxReconnectAttempts else { return }
+        guard reconnectAttempt < maxReconnectAttempts else {
+            debugLog("[WS] Reconnect exhausted after \(maxReconnectAttempts) attempts")
+            isReconnectExhausted = true
+            await reconnectExhaustedHandler?()
+            return
+        }
         
         reconnectAttempt += 1
         let delay = baseReconnectDelay * pow(2.0, Double(reconnectAttempt - 1))
         let cappedDelay = min(delay, 60.0)
         
+        debugLog("[WS] Reconnect attempt \(reconnectAttempt)/\(maxReconnectAttempts) in \(cappedDelay)s")
+        
         try? await Task.sleep(for: .seconds(cappedDelay))
         
         if !Task.isCancelled {
-            try? await connect(to: url)
+            do {
+                try await connect(to: url)
+                debugLog("[WS] Reconnect successful")
+            } catch {
+                debugLog("[WS] Reconnect failed: \(error)")
+                await scheduleReconnect(to: url)
+            }
         }
+    }
+    
+    func resetReconnectState() {
+        reconnectAttempt = 0
+        isReconnectExhausted = false
     }
 }
