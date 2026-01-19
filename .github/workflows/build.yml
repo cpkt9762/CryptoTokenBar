@@ -31,10 +31,12 @@ jobs:
 
       - name: Build
         run: |
+          set -euxo pipefail
           xcodebuild -project CryptoTokenBar.xcodeproj \
             -scheme CryptoTokenBar \
             -configuration Release \
             -derivedDataPath build \
+            -resultBundlePath build/CryptoTokenBar.xcresult \
             CODE_SIGN_IDENTITY="-" \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGNING_ALLOWED=NO \
@@ -42,10 +44,12 @@ jobs:
 
       - name: Build ScreenSaver
         run: |
+          set -euxo pipefail
           xcodebuild -project CryptoTokenBar.xcodeproj \
             -scheme CryptoTokenBarScreenSaver \
             -configuration Release \
             -derivedDataPath build \
+            -resultBundlePath build/CryptoTokenBarScreenSaver.xcresult \
             CODE_SIGN_IDENTITY="-" \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGNING_ALLOWED=NO \
