@@ -29,6 +29,7 @@
 		A1000001014 /* SparklineView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000002016 /* SparklineView.swift */; };
 		A1000001015 /* TokenStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000002017 /* TokenStore.swift */; };
 		A1000001016 /* ConnectionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000002018 /* ConnectionManager.swift */; };
+		A1000001025 /* AppLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000002025 /* AppLog.swift */; };
 		A1000001017 /* BinanceFuturesProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000002019 /* BinanceFuturesProvider.swift */; };
 		A1000001018 /* TokenIconView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100000201A /* TokenIconView.swift */; };
 		A1000001020 /* OverlayPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000002020 /* OverlayPanel.swift */; };
@@ -70,6 +71,7 @@
 		A1000002017 /* TokenStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TokenStore.swift; sourceTree = "<group>"; };
 		A100000201A /* TokenIconView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TokenIconView.swift; sourceTree = "<group>"; };
 		A1000002018 /* ConnectionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectionManager.swift; sourceTree = "<group>"; };
+		A1000002025 /* AppLog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppLog.swift; sourceTree = "<group>"; };
 		A1000002019 /* BinanceFuturesProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BinanceFuturesProvider.swift; sourceTree = "<group>"; };
 		A1000002020 /* OverlayPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OverlayPanel.swift; sourceTree = "<group>"; };
 		A1000002021 /* OverlayWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OverlayWindowController.swift; sourceTree = "<group>"; };
@@ -217,6 +219,7 @@
 				A1000002015 /* SparklineBuffer.swift */,
 				A1000002017 /* TokenStore.swift */,
 				A1000002018 /* ConnectionManager.swift */,
+				A1000002025 /* AppLog.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -391,6 +394,7 @@
 				A1000001014 /* SparklineView.swift in Sources */,
 				A1000001015 /* TokenStore.swift in Sources */,
 				A1000001016 /* ConnectionManager.swift in Sources */,
+				A1000001025 /* AppLog.swift in Sources */,
 				A1000001020 /* OverlayPanel.swift in Sources */,
 				A1000001021 /* OverlayWindowController.swift in Sources */,
 				A1000001022 /* OverlayContentView.swift in Sources */,

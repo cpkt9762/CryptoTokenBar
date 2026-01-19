@@ -1,21 +1,10 @@
 import Foundation
 import Observation
+import OSLog
 
 func debugLog(_ message: String) {
-    let logPath = "/tmp/crypto_debug.log"
-    let timestamp = ISO8601DateFormatter().string(from: Date())
-    let line = "[\(timestamp)] \(message)\n"
-    if let data = line.data(using: .utf8) {
-        if FileManager.default.fileExists(atPath: logPath) {
-            if let handle = FileHandle(forWritingAtPath: logPath) {
-                handle.seekToEndOfFile()
-                handle.write(data)
-                handle.closeFile()
-            }
-        } else {
-            FileManager.default.createFile(atPath: logPath, contents: data)
-        }
-    }
+    AppLog.app.debug("\(message)")
+    AppLog.appendToFile(message, path: "/tmp/crypto_debug.log")
 }
 
 @MainActor
@@ -40,7 +29,9 @@ final class PriceService {
     private var usdcRate: Decimal = 1.0
     private var currentQuote: QuoteMode = .usdt
     private var lastTickTime: Date = Date()
-    private let staleThreshold: TimeInterval = 60 // 60s without tick = stale
+    private let staleThreshold: TimeInterval = 30
+    private let staleConfirmationsRequired = 2
+    private var consecutiveStaleChecks = 0
     
     private init() {}
     
@@ -171,7 +162,13 @@ final class PriceService {
                 }
                 
                 let elapsed = Date().timeIntervalSince(lastTickTime)
-                if elapsed > staleThreshold && !isDisconnected {
+                if elapsed > staleThreshold {
+                    consecutiveStaleChecks += 1
+                } else {
+                    consecutiveStaleChecks = 0
+                }
+
+                if consecutiveStaleChecks >= staleConfirmationsRequired && !isDisconnected {
                     debugLog("[PriceService] Watchdog: no tick for \(Int(elapsed))s, marking stale")
                     markAllPricesStale()
                 }
