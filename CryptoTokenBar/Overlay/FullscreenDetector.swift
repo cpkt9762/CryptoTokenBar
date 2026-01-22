@@ -121,7 +121,10 @@ final class FullscreenDetector: ObservableObject {
                     height: boundsDict["Height"] ?? 0
                 )
                 
-                if isWindowFullscreen(windowBounds: windowBounds, screenBounds: screenBounds) {
+                let isFS = isWindowFullscreen(windowBounds: windowBounds, screenBounds: screenBounds)
+                debugLog("[Fullscreen] App: \(frontApp.localizedName ?? "?"), window: \(windowBounds), screen: \(screenBounds), match: \(isFS)")
+                
+                if isFS {
                     newFullscreenIDs.insert(displayID)
                     break
                 }
@@ -129,27 +132,33 @@ final class FullscreenDetector: ObservableObject {
         }
         
         if fullscreenDisplayIDs != newFullscreenIDs {
+            debugLog("[Fullscreen] State changed: \(newFullscreenIDs)")
             fullscreenDisplayIDs = newFullscreenIDs
         }
     }
     
     private func isWindowFullscreen(windowBounds: CGRect, screenBounds: CGRect) -> Bool {
-        let tolerance: CGFloat = 10
+        let tolerance: CGFloat = 50
+        let menuBarHeight: CGFloat = 38
         
-        let heightMatch = abs(windowBounds.height - screenBounds.height) <= tolerance
-        let yMatch = abs(windowBounds.origin.y - screenBounds.origin.y) <= tolerance
+        let effectiveScreenHeight = screenBounds.height - menuBarHeight
+        
+        let heightMatchFull = abs(windowBounds.height - screenBounds.height) <= tolerance
+        let heightMatchWithMenuBar = abs(windowBounds.height - effectiveScreenHeight) <= tolerance
+        let heightMatch = heightMatchFull || heightMatchWithMenuBar
         
         let isFullWidth = abs(windowBounds.width - screenBounds.width) <= tolerance
-        let isHalfWidth = abs(windowBounds.width - screenBounds.width / 2) <= tolerance
         
-        let xMatchLeft = abs(windowBounds.origin.x - screenBounds.origin.x) <= tolerance
-        let xMatchRight = abs(windowBounds.origin.x - (screenBounds.origin.x + screenBounds.width / 2)) <= tolerance
+        let minSplitWidth = screenBounds.width * 0.3
+        let isSplitWidth = windowBounds.width >= minSplitWidth && windowBounds.width < screenBounds.width - tolerance
         
-        let isStandardFullscreen = isFullWidth && heightMatch && xMatchLeft && yMatch
-        let isSplitViewLeft = isHalfWidth && heightMatch && xMatchLeft && yMatch
-        let isSplitViewRight = isHalfWidth && heightMatch && xMatchRight && yMatch
+        let windowInScreen = windowBounds.origin.x >= screenBounds.origin.x - tolerance &&
+                             windowBounds.origin.x + windowBounds.width <= screenBounds.origin.x + screenBounds.width + tolerance
         
-        return isStandardFullscreen || isSplitViewLeft || isSplitViewRight
+        let isStandardFullscreen = isFullWidth && heightMatch
+        let isSplitView = isSplitWidth && heightMatch && windowInScreen
+        
+        return isStandardFullscreen || isSplitView
     }
     
     nonisolated deinit {
