@@ -60,6 +60,18 @@ enum OverlayTopLevelMode: String, CaseIterable {
     }
 }
 
+enum OverlayFullscreenBehavior: String, CaseIterable {
+    case collapse
+    case hide
+    
+    var displayName: String {
+        switch self {
+        case .collapse: return "Fullscreen: Show (Collapsed)"
+        case .hide: return "Fullscreen: Hide"
+        }
+    }
+}
+
 enum OverlayVisibilityScope: String, CaseIterable {
     case desktopOnly
     case allSpaces

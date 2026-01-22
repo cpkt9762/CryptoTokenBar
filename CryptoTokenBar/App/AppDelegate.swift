@@ -94,6 +94,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             overlaySettingsMenu.addItem(item)
         }
         
+        overlaySettingsMenu.addItem(NSMenuItem.separator())
+        
+        let hideInFullscreenItem = NSMenuItem(title: "Hide in Fullscreen", action: #selector(toggleHideInFullscreen(_:)), keyEquivalent: "")
+        hideInFullscreenItem.target = self
+        hideInFullscreenItem.state = overlayManager.fullscreenBehavior == .hide ? .on : .off
+        overlaySettingsMenu.addItem(hideInFullscreenItem)
+        
         menu.addItem(overlaySettingsItem)
         
         menu.addItem(NSMenuItem.separator())
@@ -206,6 +213,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         sender.state = .on
         overlayManager.topLevelMode = level
+    }
+    
+    @objc private func toggleHideInFullscreen(_ sender: NSMenuItem) {
+        let newBehavior: OverlayFullscreenBehavior = overlayManager.fullscreenBehavior == .hide ? .collapse : .hide
+        overlayManager.fullscreenBehavior = newBehavior
+        sender.state = newBehavior == .hide ? .on : .off
     }
 }
 

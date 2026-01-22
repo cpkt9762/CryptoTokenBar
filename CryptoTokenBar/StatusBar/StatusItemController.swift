@@ -4,8 +4,8 @@ import SwiftUI
 @MainActor
 final class StatusItemController {
     
-    static let defaultWidth: CGFloat = 180
-    static let minWidth: CGFloat = 140
+    static let defaultWidth: CGFloat = 120
+    static let minWidth: CGFloat = 80
     static let maxWidth: CGFloat = 260
     
     private let statusItem: NSStatusItem
@@ -26,9 +26,13 @@ final class StatusItemController {
         self.statusItem = NSStatusBar.system.statusItem(withLength: self.width)
         self.popover = NSPopover()
         
+        statusItem.isVisible = true
+        
         setupPopover()
         setupHostingView()
         setupClickHandling()
+        
+        debugLog("[StatusBar] StatusItem created, isVisible: \(statusItem.isVisible), length: \(statusItem.length)")
     }
     
     private func setupPopover() {
@@ -41,7 +45,10 @@ final class StatusItemController {
     }
     
     private func setupHostingView() {
-        guard let button = statusItem.button else { return }
+        guard let button = statusItem.button else {
+            debugLog("[StatusBar] ERROR: statusItem.button is nil")
+            return
+        }
         
         let contentView = StatusBarContentView()
         let hosting = NSHostingView(rootView: contentView)
@@ -58,6 +65,7 @@ final class StatusItemController {
         ])
         
         self.hostingView = hosting
+        debugLog("[StatusBar] Hosting view set up, button frame: \(button.frame)")
     }
     
     private func setupClickHandling() {

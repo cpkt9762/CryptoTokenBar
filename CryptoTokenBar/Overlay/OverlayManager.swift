@@ -58,6 +58,14 @@ final class OverlayManager: ObservableObject {
         }
     }
     
+    var fullscreenBehavior: OverlayFullscreenBehavior {
+        get { OverlayFullscreenBehavior(rawValue: UserDefaults.standard.string(forKey: "overlay.fullscreenBehavior") ?? "") ?? .hide }
+        set {
+            UserDefaults.standard.set(newValue.rawValue, forKey: "overlay.fullscreenBehavior")
+            updateCollapsedStates()
+        }
+    }
+    
     var interactionModifiers: NSEvent.ModifierFlags {
         get {
             let raw = UserDefaults.standard.integer(forKey: "overlay.interactionModifiers")
@@ -101,16 +109,37 @@ final class OverlayManager: ObservableObject {
     private func updateCollapsedStates() {
         let tokenCount = TokenStore.shared.tokens.filter(\.isVisible).count
         let interval = settings.carouselInterval
+        let behavior = fullscreenBehavior
         
         if let controller = singleWindowController {
             let screen = controller.panel.screen ?? controller.targetScreen ?? NSScreen.main
             let isFullscreen = screen.flatMap { fullscreenDetector.isFullscreen(for: $0) } ?? false
-            controller.setCollapsed(isFullscreen, tokenCount: tokenCount, interval: interval)
+            
+            if behavior == .hide {
+                if isFullscreen {
+                    controller.panel.orderOut(nil)
+                } else if isVisible {
+                    controller.panel.orderFrontRegardless()
+                }
+                controller.setCollapsed(false, tokenCount: tokenCount, interval: interval)
+            } else {
+                controller.setCollapsed(isFullscreen, tokenCount: tokenCount, interval: interval)
+            }
         }
         
         for (displayID, controller) in perScreenControllers {
             let isFullscreen = fullscreenDetector.isFullscreen(displayID: displayID)
-            controller.setCollapsed(isFullscreen, tokenCount: tokenCount, interval: interval)
+            
+            if behavior == .hide {
+                if isFullscreen {
+                    controller.panel.orderOut(nil)
+                } else if isVisible {
+                    controller.panel.orderFrontRegardless()
+                }
+                controller.setCollapsed(false, tokenCount: tokenCount, interval: interval)
+            } else {
+                controller.setCollapsed(isFullscreen, tokenCount: tokenCount, interval: interval)
+            }
         }
     }
     

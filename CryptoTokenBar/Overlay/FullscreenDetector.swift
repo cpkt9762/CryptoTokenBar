@@ -136,12 +136,20 @@ final class FullscreenDetector: ObservableObject {
     private func isWindowFullscreen(windowBounds: CGRect, screenBounds: CGRect) -> Bool {
         let tolerance: CGFloat = 10
         
-        let widthMatch = abs(windowBounds.width - screenBounds.width) <= tolerance
         let heightMatch = abs(windowBounds.height - screenBounds.height) <= tolerance
-        let xMatch = abs(windowBounds.origin.x - screenBounds.origin.x) <= tolerance
         let yMatch = abs(windowBounds.origin.y - screenBounds.origin.y) <= tolerance
         
-        return widthMatch && heightMatch && xMatch && yMatch
+        let isFullWidth = abs(windowBounds.width - screenBounds.width) <= tolerance
+        let isHalfWidth = abs(windowBounds.width - screenBounds.width / 2) <= tolerance
+        
+        let xMatchLeft = abs(windowBounds.origin.x - screenBounds.origin.x) <= tolerance
+        let xMatchRight = abs(windowBounds.origin.x - (screenBounds.origin.x + screenBounds.width / 2)) <= tolerance
+        
+        let isStandardFullscreen = isFullWidth && heightMatch && xMatchLeft && yMatch
+        let isSplitViewLeft = isHalfWidth && heightMatch && xMatchLeft && yMatch
+        let isSplitViewRight = isHalfWidth && heightMatch && xMatchRight && yMatch
+        
+        return isStandardFullscreen || isSplitViewLeft || isSplitViewRight
     }
     
     nonisolated deinit {
